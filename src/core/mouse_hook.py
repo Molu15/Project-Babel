@@ -24,7 +24,8 @@ class MSLLHOOKSTRUCT(ctypes.Structure):
     ]
 
 # Callback signature: LRESULT (int, WPARAM, LPARAM)
-CMPFUNC = ctypes.CFUNCTYPE(LRESULT, ctypes.c_int, WPARAM, ctypes.POINTER(MSLLHOOKSTRUCT))
+# Windows callbacks use stdcall (WINFUNCTYPE)
+CMPFUNC = ctypes.WINFUNCTYPE(LRESULT, ctypes.c_int, WPARAM, ctypes.POINTER(MSLLHOOKSTRUCT))
 
 class LowLevelMouseHook:
     def __init__(self, callback):
@@ -41,23 +42,26 @@ class LowLevelMouseHook:
         self._hook_proc = CMPFUNC(self._hook_callback)
 
     def _hook_callback(self, nCode, wParam, lParam):
-        if nCode >= 0:
-            # Check if we should block
-            # wParam is likely WM_MOUSEWHEEL
-            struct = lParam.contents
-            
-            # Simple wrapper data
-            event_info = {
-                'msg': wParam,
-                'delta': (ctypes.c_short(struct.mouseData >> 16).value),
-                'x': struct.pt.x,
-                'y': struct.pt.y
-            }
-            
-            should_allow = self.callback(event_info)
-            if not should_allow:
-                 # To block, return non-zero. 
-                 return 1 
+        try:
+            if nCode >= 0:
+                # Check if we should block
+                # wParam is likely WM_MOUSEWHEEL
+                struct = lParam.contents
+                
+                # Simple wrapper data
+                event_info = {
+                    'msg': wParam,
+                    'delta': (ctypes.c_short(struct.mouseData >> 16).value),
+                    'x': struct.pt.x,
+                    'y': struct.pt.y
+                }
+                
+                should_allow = self.callback(event_info)
+                if not should_allow:
+                     # To block, return non-zero. 
+                     return 1 
+        except Exception as e:
+            print(f"Hook Callback Error: {e}")
 
         return user32.CallNextHookEx(self.hook_id, nCode, wParam, lParam)
 
@@ -74,16 +78,35 @@ class LowLevelMouseHook:
 
     def _msg_loop(self):
         self.thread_id = kernel32.GetCurrentThreadId()
-        self.hook_id = user32.SetWindowsHookExA(WH_MOUSE_LL, self._hook_proc, kernel32.GetModuleHandleW(None), 0)
+        # For WH_MOUSE_LL, hMod is usually NULL (0) if we aren't injecting a DLL? 
+        # Actually docs say: "If the hook procedure is not in a DLL... hMod must be NULL." (Wait, no, LL hooks don't inject).
+        # Common fix for Error 126 in Python: Pass 0.
+        self.hook_id = user32.SetWindowsHookExA(WH_MOUSE_LL, self._hook_proc, 0, 0)
+        
+        if not self.hook_id:
+            error = ctypes.GetLastError()
+            print(f"CRITICAL: Failed to install mouse hook. Error Code: {error}")
+            return
+            
+        print(f"DEBUG: Mouse Hook installed. ID={self.hook_id}")
+        
+        msg = MSG()
         
         msg = MSG()
         # Message pump
-        while self.running:
-            bRet = user32.GetMessageW(ctypes.byref(msg), None, 0, 0)
-            if bRet == 0 or bRet == -1:
-                break
-            user32.TranslateMessage(ctypes.byref(msg))
-            user32.DispatchMessageW(ctypes.byref(msg))
+        # print("DEBUG: Mouse Hook Message Loop Started")
+        try:
+            while self.running:
+                bRet = user32.GetMessageW(ctypes.byref(msg), None, 0, 0)
+                if bRet == 0 or bRet == -1:
+                    break
+                user32.TranslateMessage(ctypes.byref(msg))
+                user32.DispatchMessageW(ctypes.byref(msg))
+        except Exception as e:
+            print(f"CRITICAL: Mouse hook died: {e}")
+        finally:
+            # print("DEBUG: Mouse Hook Message Loop Ended")
+            pass
 
         user32.UnhookWindowsHookEx(self.hook_id)
         self.hook_id = None

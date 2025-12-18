@@ -21,11 +21,11 @@ class InputObserver:
             try:
                 self.is_photoshop_active = self.context_manager.is_target_active()
                 if self.is_photoshop_active != last_state:
-                    print(f"DEBUG: Context changed to {'PHOTOSHOP' if self.is_photoshop_active else 'OTHER'}")
+                # print(f"DEBUG: Context changed to {'PHOTOSHOP' if self.is_photoshop_active else 'OTHER'}")
                     last_state = self.is_photoshop_active
             except Exception as e:
                 print(f"Error in context thread: {e}")
-            time.sleep(0.1)
+            time.sleep(0.05) # Faster polling
 
     def start(self):
         """Starts listening."""
@@ -75,10 +75,13 @@ class InputObserver:
         
         # Flag to verify if we need mouse hook
         need_mouse = False
+        # print(f"DEBUG: Registering {len(mappings)} mappings...")
         for rule in mappings:
             src = rule['original']
+            # print(f"DEBUG: Processing rule '{src}'")
             if 'wheel' in src:
                 need_mouse = True
+                # print("DEBUG: Mouse rule detected.")
             else:
                  # Key mappings
                 dst = rule['output']
@@ -87,8 +90,10 @@ class InputObserver:
                 except Exception as e:
                      print(f"Failed to register hotkey {src}: {e}")
 
+        # print(f"DEBUG: Finished rules. Need mouse? {need_mouse}")
         if need_mouse and not hasattr(self, '_mouse_hook'):
             from core.mouse_hook import LowLevelMouseHook, WM_MOUSEWHEEL
+            # print("DEBUG: Initializing Mouse Hook...")
             self._mouse_hook = LowLevelMouseHook(self._on_low_level_mouse)
             self._mouse_hook.start()
             print("Mouse hook started.")
@@ -113,12 +118,21 @@ class InputObserver:
             user32 = ctypes.windll.user32
             
             # Check high-order bit for key down
+            # VK_CONTROL=0x11, VK_LCONTROL=0xA2, VK_RCONTROL=0xA3
             ctrl_down = (user32.GetAsyncKeyState(0x11) & 0x8000) != 0
+            l_ctrl = (user32.GetAsyncKeyState(0xA2) & 0x8000) != 0
+            r_ctrl = (user32.GetAsyncKeyState(0xA3) & 0x8000) != 0
+            
+            # kb_ctrl = keyboard.is_pressed('ctrl') # Removing this as it causes false positives
+            
             alt_down = (user32.GetAsyncKeyState(0x12) & 0x8000) != 0
             
-            print(f"DEBUG: Wheel Event. Ctrl={ctrl_down}, Alt={alt_down}")
+            print(f"DEBUG: Wheel. Ctrl={ctrl_down} (L={l_ctrl}, R={r_ctrl}). Alt={alt_down}")
             
-            if ctrl_down and not alt_down:
+            # Use ANY valid detection
+            is_ctrl = ctrl_down or l_ctrl or r_ctrl
+            
+            if is_ctrl and not alt_down:
                 print("DEBUG: Blocking Ctrl+Wheel -> Injecting Zoom")
                 threading.Thread(target=self._inject_zoom, args=(event_info['delta'],)).start()
                 return False # Block
@@ -126,22 +140,35 @@ class InputObserver:
         return True # Allow everything else
 
     def _inject_zoom(self, delta):
-        print(f"DEBUG: Enhancing Zoom injection (delta={delta})")
+        # print(f"DEBUG: Enhancing Zoom injection (delta={delta})")
         import mouse
         # Sequence: Release Ctrl -> Press Alt -> Scroll -> Restore
         keyboard.release('ctrl')
-        time.sleep(0.005)
+        time.sleep(0.001)
         keyboard.press('alt')
-        time.sleep(0.005)
+        time.sleep(0.001)
         
         steps = delta / 120.0
         mouse.wheel(steps)
-        time.sleep(0.005)
+        time.sleep(0.001)
         
         keyboard.release('alt')
-        time.sleep(0.005)
-        keyboard.press('ctrl')
-        print("DEBUG: Zoom injection done")
+        time.sleep(0.001)
+        
+        # SMART RESTORE: Only press Ctrl back down if physically held
+        import ctypes
+        user32 = ctypes.windll.user32
+        # Check Physical State (High bit)
+        if (user32.GetAsyncKeyState(0x11) & 0x8000) != 0:
+            print("DEBUG: Restoring Ctrl")
+            # keyboard.press('ctrl') 
+            # Use ctypes to Force Press
+            ctypes.windll.user32.keybd_event(0x11, 0, 0, 0) # VK_CONTROL Down
+        else:
+            # Ensure it is released if not held
+            keyboard.release('ctrl')
+            
+        # print("DEBUG: Zoom injection done")
 
     def _handle_hotkey(self, src, dst):
         print(f"DEBUG: Hotkey detected '{src}'")

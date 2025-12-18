@@ -16,12 +16,12 @@
         },
         {
             "input": "ctrl+ö",
-            "output": "ctrl+]",
+            "output": "ctrl+ä",
             "description": "Layer Up"
         },
         {
             "input": "ctrl+ä",
-            "output": "[",
+            "output": "ctrl+#",
             "description": "Layer Down"
         },
         {
