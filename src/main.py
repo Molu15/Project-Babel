@@ -47,8 +47,10 @@ def main():
     
     try:
         # Keep the main thread alive
+        print("Running...", end="", flush=True)
         while True:
             time.sleep(1)
+            print(".", end="", flush=True)
             # Optional: Periodic status checks or heartbeat
     except KeyboardInterrupt:
         print("Stopping Project Babel...")

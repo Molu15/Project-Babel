@@ -22,6 +22,7 @@ class InputObserver:
                 self.is_photoshop_active = self.context_manager.is_target_active()
                 if self.is_photoshop_active != last_state:
                 # print(f"DEBUG: Context changed to {'PHOTOSHOP' if self.is_photoshop_active else 'OTHER'}")
+                    print(f"DEBUG: Context changed to {'PHOTOSHOP' if self.is_photoshop_active else 'OTHER'}", flush=True)
                     last_state = self.is_photoshop_active
             except Exception as e:
                 print(f"Error in context thread: {e}")
@@ -140,35 +141,35 @@ class InputObserver:
         return True # Allow everything else
 
     def _inject_zoom(self, delta):
-        # print(f"DEBUG: Enhancing Zoom injection (delta={delta})")
         import mouse
-        # Sequence: Release Ctrl -> Press Alt -> Scroll -> Restore
-        keyboard.release('ctrl')
-        time.sleep(0.001)
-        keyboard.press('alt')
-        time.sleep(0.001)
-        
-        steps = delta / 120.0
-        mouse.wheel(steps)
-        time.sleep(0.001)
-        
-        keyboard.release('alt')
-        time.sleep(0.001)
-        
-        # SMART RESTORE: Only press Ctrl back down if physically held
         import ctypes
         user32 = ctypes.windll.user32
+        
+        # Back to basics: Use keyboard library which handles the virtual stack better
+        # 1. Release Ctrl
+        keyboard.release('ctrl')
+        time.sleep(0.02)
+        
+        # 2. Press Alt
+        keyboard.press('alt')
+        time.sleep(0.02)
+        
+        # 3. Scroll
+        steps = delta / 120.0
+        mouse.wheel(steps)
+        time.sleep(0.02)
+        
+        # 4. Release Alt
+        keyboard.release('alt')
+        time.sleep(0.02)
+        
+        # 5. Smart Restore Ctrl
         # Check Physical State (High bit)
         if (user32.GetAsyncKeyState(0x11) & 0x8000) != 0:
-            print("DEBUG: Restoring Ctrl")
-            # keyboard.press('ctrl') 
-            # Use ctypes to Force Press
-            ctypes.windll.user32.keybd_event(0x11, 0, 0, 0) # VK_CONTROL Down
+            # print("DEBUG: Restoring Ctrl")
+            keyboard.press('ctrl')
         else:
-            # Ensure it is released if not held
-            keyboard.release('ctrl')
-            
-        # print("DEBUG: Zoom injection done")
+             keyboard.release('ctrl') # Ensure clean state
 
     def _handle_hotkey(self, src, dst):
         print(f"DEBUG: Hotkey detected '{src}'")

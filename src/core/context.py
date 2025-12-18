@@ -26,7 +26,7 @@ class ContextManager:
             process_name = process.name().lower()
             
             # Debug info (optional, helps finding the right process name)
-            #print(f"DEBUG: Active Process='{process_name}'")
+            # print(f"DEBUG: Active Process='{process_name}'")
             
             if process_name in [app.lower() for app in self.target_apps]:
                 # print(f"DEBUG: Context MATCH {process_name}")
