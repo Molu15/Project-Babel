@@ -1,0 +1,5 @@
+keyboard==0.13.5
+mouse==0.7.1
+pygetwindow==0.0.9
+pywin32==306
+psutil

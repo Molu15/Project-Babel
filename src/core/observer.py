@@ -1,0 +1,153 @@
+import keyboard
+import threading
+import time
+
+class InputObserver:
+    def __init__(self, context_manager, translation_engine, injection_module):
+        self.context_manager = context_manager
+        self.translation_engine = translation_engine
+        self.injection_module = injection_module
+        self.running = False
+        self._hook = None
+        
+        # Context Caching
+        self.is_photoshop_active = False
+        self._context_thread = threading.Thread(target=self._monitor_context, daemon=True)
+
+    def _monitor_context(self):
+        """Polls context every 0.1s to update status without blocking hooks."""
+        last_state = None
+        while True:
+            try:
+                self.is_photoshop_active = self.context_manager.is_target_active()
+                if self.is_photoshop_active != last_state:
+                    print(f"DEBUG: Context changed to {'PHOTOSHOP' if self.is_photoshop_active else 'OTHER'}")
+                    last_state = self.is_photoshop_active
+            except Exception as e:
+                print(f"Error in context thread: {e}")
+            time.sleep(0.1)
+
+    def start(self):
+        """Starts listening."""
+        self.running = True
+        self._context_thread.start()
+        
+        # Hook all events. 
+        # self._hook = keyboard.hook(self._on_event, suppress=True)
+
+    def stop(self):
+        """Stops listening."""
+        self.running = False
+        keyboard.unhook_all()
+
+    def _on_event(self, event):
+        """
+        Callback for keyboard events.
+        """
+        # print("Event detected")
+        if not self.running:
+            return
+        
+        should_translate = False
+        target_output = None
+        
+        if event.event_type == 'down':
+             if self.is_photoshop_active:
+                 target_output = self.translation_engine.translate(event)
+                 if target_output:
+                     should_translate = True
+        
+        if should_translate:
+            # We actively matched a rule in the correct context.
+            print("Event should be translated")
+            print(f"Translating {event.name} -> {target_output}")
+            self.injection_module.inject(target_output)
+        else:
+            # Pass through.
+            pass
+            
+    def register_hotkeys(self):
+        """
+        Registers hotkeys based on the translation engine's loaded rules.
+        Also sets up mouse hooks if needed.
+        """
+        mappings = self.translation_engine.mappings
+        
+        # Flag to verify if we need mouse hook
+        need_mouse = False
+        for rule in mappings:
+            src = rule['original']
+            if 'wheel' in src:
+                need_mouse = True
+            else:
+                 # Key mappings
+                dst = rule['output']
+                try:
+                    keyboard.add_hotkey(src, self._handle_hotkey, args=[src, dst], suppress=True, trigger_on_release=False)
+                except Exception as e:
+                     print(f"Failed to register hotkey {src}: {e}")
+
+        if need_mouse and not hasattr(self, '_mouse_hook'):
+            from core.mouse_hook import LowLevelMouseHook, WM_MOUSEWHEEL
+            self._mouse_hook = LowLevelMouseHook(self._on_low_level_mouse)
+            self._mouse_hook.start()
+            print("Mouse hook started.")
+
+    def _on_low_level_mouse(self, event_info):
+        """
+        Callback from LowLevelMouseHook.
+        Returns True to Allow, False to Block (Suppress).
+        """
+        from core.mouse_hook import WM_MOUSEWHEEL, WM_MOUSEHWHEEL
+        
+        # print(f"DEBUG: Mouse Msg={event_info['msg']}")
+        
+        if event_info['msg'] == WM_MOUSEWHEEL or event_info['msg'] == WM_MOUSEHWHEEL:
+            # Context Check (Cached)
+            if not self.is_photoshop_active:
+                # print("DEBUG: Mouse event ignored (Context not active)")
+                return True # Allow
+            
+            # Check Modifiers using GetAsyncKeyState
+            import ctypes
+            user32 = ctypes.windll.user32
+            
+            # Check high-order bit for key down
+            ctrl_down = (user32.GetAsyncKeyState(0x11) & 0x8000) != 0
+            alt_down = (user32.GetAsyncKeyState(0x12) & 0x8000) != 0
+            
+            print(f"DEBUG: Wheel Event. Ctrl={ctrl_down}, Alt={alt_down}")
+            
+            if ctrl_down and not alt_down:
+                print("DEBUG: Blocking Ctrl+Wheel -> Injecting Zoom")
+                threading.Thread(target=self._inject_zoom, args=(event_info['delta'],)).start()
+                return False # Block
+
+        return True # Allow everything else
+
+    def _inject_zoom(self, delta):
+        print(f"DEBUG: Enhancing Zoom injection (delta={delta})")
+        import mouse
+        # Sequence: Release Ctrl -> Press Alt -> Scroll -> Restore
+        keyboard.release('ctrl')
+        time.sleep(0.005)
+        keyboard.press('alt')
+        time.sleep(0.005)
+        
+        steps = delta / 120.0
+        mouse.wheel(steps)
+        time.sleep(0.005)
+        
+        keyboard.release('alt')
+        time.sleep(0.005)
+        keyboard.press('ctrl')
+        print("DEBUG: Zoom injection done")
+
+    def _handle_hotkey(self, src, dst):
+        print(f"DEBUG: Hotkey detected '{src}'")
+        if self.is_photoshop_active:
+            print(f"DEBUG: Translating {src} -> {dst}")
+            self.injection_module.inject(dst)
+        else:
+            print(f"DEBUG: Context verification failed for hotkey '{src}' (is_active={self.is_photoshop_active})")
+            keyboard.send(src)
