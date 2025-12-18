@@ -1,0 +1,32 @@
+# Operating System Files
+.DS_Store
+Thumbs.db
+*.swp
+*.lnk
+
+# Editor Directories
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+env/
+
+# Build Output
+dist/
+build/
+out/
