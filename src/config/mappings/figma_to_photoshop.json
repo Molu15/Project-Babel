@@ -1,0 +1,48 @@
+{
+    "profile_name": "Figma to Photoshop (German QWERTZ)",
+    "target_apps": [
+        "Adobe Photoshop"
+    ],
+    "mappings": [
+        {
+            "input": "ctrl+d",
+            "output": "ctrl+j",
+            "description": "Duplicate"
+        },
+        {
+            "input": "esc",
+            "output": "ctrl+d",
+            "description": "Deselect"
+        },
+        {
+            "input": "ctrl+ö",
+            "output": "ctrl+ä",
+            "description": "Layer Up"
+        },
+        {
+            "input": "ctrl+ä",
+            "output": "ctrl+#",
+            "description": "Layer Down"
+        },
+        {
+            "input": "ctrl+y",
+            "output": "ctrl+shift+Z",
+            "description": "Redo"
+        },
+        {
+            "input": "ctrl+g",
+            "output": "ctrl+g",
+            "description": "Group (Passthrough)"
+        },
+        {
+            "input": "ctrl+shift+g",
+            "output": "ctrl+shift+g",
+            "description": "Ungroup (Passthrough)"
+        },
+        {
+            "input": "ctrl+wheel",
+            "output": "alt+wheel",
+            "description": "Zoom"
+        }
+    ]
+}
