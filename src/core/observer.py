@@ -3,16 +3,25 @@ import threading
 import time
 
 class InputObserver:
-    def __init__(self, context_manager, translation_engine, injection_module):
+    def __init__(self, context_manager, config_manager, injection_module):
         self.context_manager = context_manager
-        self.translation_engine = translation_engine
+        self.config_manager = config_manager
         self.injection_module = injection_module
         self.running = False
         self._hook = None
         
         # Context Caching
-        self.is_photoshop_active = False
-        self._context_thread = threading.Thread(target=self._monitor_context, daemon=True)
+        self.is_active_context = False
+        self._context_thread = None
+
+    def log_debug(self, msg):
+        import time
+        try:
+            with open("babel_debug.log", "a") as f:
+                f.write(f"{time.ctime()} [OBSERVER]: {msg}\n")
+        except:
+            pass
+
         
         # State tracking for Zoom continuity
         self.last_ctrl_wheel_time = 0
@@ -25,18 +34,26 @@ class InputObserver:
         last_state = None
         while True:
             try:
-                self.is_photoshop_active = self.context_manager.is_target_active()
-                if self.is_photoshop_active != last_state:
-                    print(f"DEBUG: Context changed to {'PHOTOSHOP' if self.is_photoshop_active else 'OTHER'}", flush=True)
-                    last_state = self.is_photoshop_active
+                targets = self.config_manager.get_active_profile_targets()
+                self.is_active_context = self.context_manager.is_target_active(targets)
+                if self.is_active_context != last_state:
+                    self.log_debug(f"Context changed to {'ACTIVE' if self.is_active_context else 'INACTIVE'} (Targets: {targets})")
+                    last_state = self.is_active_context
             except Exception as e:
                 print(f"Error in context thread: {e}")
             time.sleep(0.05) # Faster polling
 
     def start(self):
         """Starts listening."""
+        if self.running:
+            return
+
         self.running = True
+        
+        # Re-initialize threads here to allow restarts
+        self._context_thread = threading.Thread(target=self._monitor_context, daemon=True)
         self._context_thread.start()
+        
         # Worker thread (daemon) for processing zoom buffer
         threading.Thread(target=self._zoom_worker, daemon=True).start()
 
@@ -44,45 +61,32 @@ class InputObserver:
         """Stops listening."""
         self.running = False
         keyboard.unhook_all()
+        if hasattr(self, '_mouse_hook'):
+             self._mouse_hook.stop()
 
     def _on_event(self, event):
         """
         Callback for keyboard events.
         """
-        # print("Event detected")
         if not self.running:
             return
         
-        should_translate = False
-        target_output = None
-        
-        if event.event_type == 'down':
-             if self.is_photoshop_active:
-                 target_output = self.translation_engine.translate(event)
-                 if target_output:
-                     should_translate = True
-        
-        if should_translate:
-            # We actively matched a rule in the correct context.
-            print("Event should be translated")
-            print(f"Translating {event.name} -> {target_output}")
-            self.injection_module.inject(target_output)
-        else:
-            # Pass through.
-            pass
+        # Logic moved to hotkeys, but if we need generic interception:
+        pass
             
     def register_hotkeys(self):
         """
-        Registers hotkeys based on the translation engine's loaded rules.
+        Registers hotkeys based on the config manager's active profile mappings.
         Also sets up mouse hooks if needed.
         """
-        mappings = self.translation_engine.mappings
+        mappings = self.config_manager.get_active_mappings()
         
         # Flag to verify if we need mouse hook
         need_mouse = False
         # print(f"DEBUG: Registering {len(mappings)} mappings...")
         for rule in mappings:
-            src = rule['original']
+            src = rule['input'] # Using 'input' from new JSON schema
+            
             # print(f"DEBUG: Processing rule '{src}'")
             if 'wheel' in src:
                 need_mouse = True
@@ -104,60 +108,82 @@ class InputObserver:
             print("Mouse hook started.")
 
     def _on_low_level_mouse(self, event_info):
+        # logging raw connection check
+        if not hasattr(self, 'debug_event_count'):
+            self.debug_event_count = 0
+            
+        if self.debug_event_count < 50:
+             self.log_debug(f"RAW MOUSE EVENT msg={hex(event_info['msg'])}")
+             self.debug_event_count += 1
+             
+        # Optimization: Local imports are slow. Moved key constants to top level or assumed.
         from core.mouse_hook import WM_MOUSEWHEEL, WM_MOUSEHWHEEL
-        # print(f"DEBUG: Mouse Msg={event_info['msg']}")
         
-        if event_info['msg'] == WM_MOUSEWHEEL or event_info['msg'] == WM_MOUSEHWHEEL:
-            # Debugging Bluetooth Mouse
-            print(f"DEBUG: Mouse Event {hex(event_info['msg'])} detected. Active={self.is_photoshop_active}", flush=True)
+        # FAST EXIT for common events (Moveers) to prevent freeze
+        if event_info['msg'] != WM_MOUSEWHEEL and event_info['msg'] != WM_MOUSEHWHEEL:
+             return True
 
-            if not self.is_photoshop_active:
+        # Safety Wrap: If anything fails here, we MUST allow the event or mouse dies
+        try:
+            if not self.is_active_context:
                 return True 
+            
+            # 1. Identify active wheel rule
+            # WARNING: self.config_manager.get_active_mappings() must be fast (memory only)
+            mappings = self.config_manager.get_active_mappings()
+            
+            # Optimization: Cache this rule? For now, list comp is okay if list is short.
+            wheel_rule = next((r for r in mappings if 'wheel' in r['input']), None)
+            
+            if not wheel_rule:
+                return True
+
+            # Parse rule: e.g. "ctrl+wheel" -> "alt+wheel"
+            trigger_mod = wheel_rule['input'].replace('+wheel', '').strip().lower()
+            output_mod = wheel_rule['output'].replace('+wheel', '').strip().lower()
             
             import ctypes
             user32 = ctypes.windll.user32
             
-            # Check Modifiers
-            ctrl_down = (user32.GetAsyncKeyState(0x11) & 0x8000) != 0
-            l_ctrl = (user32.GetAsyncKeyState(0xA2) & 0x8000) != 0
-            r_ctrl = (user32.GetAsyncKeyState(0xA3) & 0x8000) != 0
-            alt_down = (user32.GetAsyncKeyState(0x12) & 0x8000) != 0
+            # Helper to check modifier state
+            def is_mod_pressed(mod_name):
+                if mod_name == 'ctrl':
+                     return (user32.GetAsyncKeyState(0x11) & 0x8000) != 0
+                if mod_name == 'alt':
+                     return (user32.GetAsyncKeyState(0x12) & 0x8000) != 0
+                if mod_name == 'shift':
+                     return (user32.GetAsyncKeyState(0x10) & 0x8000) != 0
+                return False
+
+            trigger_pressed = is_mod_pressed(trigger_mod)
+            output_pressed = is_mod_pressed(output_mod)
             
-            # Sticky/Physical Check
-            # Using multiple methods to detect Ctrl ensures we catch it even if one method fails (common with Bluetooth devices)
-            kb_ctrl = keyboard.is_pressed('ctrl')
-            physical_ctrl = ctrl_down or l_ctrl or r_ctrl or kb_ctrl
-            
+            # self.log_debug(f"Wheel Event: Trigger({trigger_mod})={trigger_pressed}, Output({output_mod})={output_pressed}")
+
             current_time = time.time()
-            
-            # Grace period logic
             is_sticky = (current_time - self.last_ctrl_wheel_time) < 0.5
             
-            # Logic:
-            # 1. If Ctrl is pressed (or Sticky), we want to ZOOM.
-            # 2. If Alt is NOT down, it means we haven't switched yet. BLOCK -> Buffer -> Worker Switches.
-            # 3. If Alt IS down, it means Worker is active. ALLOW -> Native Zoom (Smoother).
-            
-            if (physical_ctrl or is_sticky):
-                # Keep mode alive!
+            # ZOOM LOGIC GENERIC
+            if (trigger_pressed or is_sticky):
+                self.log_debug(f"Zoom Triggered! Sticky={is_sticky}")
                 self.last_ctrl_wheel_time = current_time
                 
-                if not alt_down:
-                    # Initial State: Block and start Worker
-                    # print(f"DEBUG: START ZOOM (Delta={event_info['delta']})", flush=True)
+                if not output_pressed:
+                    # START ZOOM (Block native, inject output)
                     with self.zoom_lock:
                         self.zoom_buffer += event_info['delta']
                         self.zoom_active = True 
+                        self.zoom_trigger_key = trigger_mod
+                        self.zoom_output_key = output_mod
                     return False # Block
                 else:
-                    # Persistent State: Worker is holding Alt. Let event pass for native smoothness.
-                    # print(f"DEBUG: NATIVE ZOOM (Delta={event_info['delta']})", flush=True)
                     return True # Allow
             
-            # Default: Not Zooming
-            # print(f"DEBUG: PASS (Delta={event_info['delta']})", flush=True)
-
-        return True # Allow everything else
+            return True # Allow everything else
+            
+        except Exception as e:
+            print(f"CRITICAL ERROR IN MOUSE HOOK: {e}")
+            return True # FAILSAVE: ALWAYS ALLOW IF ERROR
 
     def _zoom_worker(self):
         """
@@ -181,13 +207,16 @@ class InputObserver:
             # ENTER ZOOM MODE
             # buffer has data or we are in grace period.
             
-            # 1. Release Ctrl / Press Alt
-            keyboard.release('ctrl')
+            # 1. Release Trigger / Press Output
+            trigger = getattr(self, 'zoom_trigger_key', 'ctrl')
+            output = getattr(self, 'zoom_output_key', 'alt')
+            
+            keyboard.release(trigger)
             time.sleep(0.02)
-            keyboard.press('alt')
+            keyboard.press(output)
             time.sleep(0.02)
             
-            # Loop while we have work OR we are holding Ctrl (Continuous Mode)
+            # Loop while we have work OR we are holding Input (Continuous Mode)
             while self.running:
                 # Check buffer
                 delta_to_apply = 0
@@ -204,11 +233,6 @@ class InputObserver:
                 else:
                     # No new scroll data.
                     # Should we exit? Only if timeout expired AND buffer empty.
-                    # Verify physical/sticky state again to exit mode if user released Ctrl
-                    # But we suppressed Ctrl, so we rely on Cached Stickiness?
-                    # Actually, GetAsyncKeyState might return 0 if we suppressed it?
-                    # No, GetAsyncKeyState checks physical hardware state too (usually).
-                    # But to be safe, we check our stickiness.
                     
                     if (time.time() - self.last_ctrl_wheel_time) > 0.5:
                         # User stopped scrolling or released key for > 500ms
@@ -217,14 +241,20 @@ class InputObserver:
                     time.sleep(0.01)
             
             # EXIT ZOOM MODE
-            keyboard.release('alt')
+            keyboard.release(output)
             time.sleep(0.02)
             
-            # Smart Restore Ctrl
-            if (user32.GetAsyncKeyState(0x11) & 0x8000) != 0:
-                keyboard.press('ctrl')
+            # Smart Restore Trigger
+            # Check physical state of trigger key
+            # Mapping simplified for common modifiers
+            trigger_vk = 0x11 # Default Ctrl
+            if trigger == 'alt': trigger_vk = 0x12
+            if trigger == 'shift': trigger_vk = 0x10
+            
+            if (user32.GetAsyncKeyState(trigger_vk) & 0x8000) != 0:
+                keyboard.press(trigger)
             else:
-                keyboard.release('ctrl')
+                keyboard.release(trigger)
             
             # Reset buffer to be safe
             with self.zoom_lock:
@@ -232,9 +262,9 @@ class InputObserver:
 
     def _handle_hotkey(self, src, dst):
         print(f"DEBUG: Hotkey detected '{src}'")
-        if self.is_photoshop_active:
+        if self.is_active_context:
             print(f"DEBUG: Translating {src} -> {dst}")
             self.injection_module.inject(dst)
         else:
-            print(f"DEBUG: Context verification failed for hotkey '{src}' (is_active={self.is_photoshop_active})")
+            # print(f"DEBUG: Context verification failed for hotkey '{src}' (is_active={self.is_active_context})")
             keyboard.send(src)
