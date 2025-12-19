@@ -68,8 +68,13 @@ def main():
         log_debug("Tray.run() returned (Exiting).")
         
     except KeyboardInterrupt:
-        log_debug("KeyboardInterrupt caught.")
-        observer.stop()
+        log_debug("User interrupted (Ctrl+C). Exiting...")
+        try:
+             observer.stop()
+             tray.icon.stop()
+        except:
+             pass
+        sys.exit(0)
     except Exception as e:
         import traceback
         err = traceback.format_exc()

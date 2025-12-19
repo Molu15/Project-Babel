@@ -28,7 +28,8 @@ class InputObserver:
         self.zoom_lock = threading.Lock()
         self.zoom_buffer = 0
         self.zoom_active = False
-
+        self.trigger_held = False # Track physical state
+        
     def _monitor_context(self):
         """Polls context every 0.1s to update status without blocking hooks."""
         last_state = None
@@ -63,6 +64,7 @@ class InputObserver:
         keyboard.unhook_all()
         if hasattr(self, '_mouse_hook'):
              self._mouse_hook.stop()
+             del self._mouse_hook
 
     def _on_event(self, event):
         """
@@ -108,14 +110,6 @@ class InputObserver:
             print("Mouse hook started.")
 
     def _on_low_level_mouse(self, event_info):
-        # logging raw connection check
-        if not hasattr(self, 'debug_event_count'):
-            self.debug_event_count = 0
-            
-        if self.debug_event_count < 50:
-             self.log_debug(f"RAW MOUSE EVENT msg={hex(event_info['msg'])}")
-             self.debug_event_count += 1
-             
         # Optimization: Local imports are slow. Moved key constants to top level or assumed.
         from core.mouse_hook import WM_MOUSEWHEEL, WM_MOUSEHWHEEL
         
@@ -142,10 +136,13 @@ class InputObserver:
             trigger_mod = wheel_rule['input'].replace('+wheel', '').strip().lower()
             output_mod = wheel_rule['output'].replace('+wheel', '').strip().lower()
             
+            # ZOOM HYBRID LOGIC (Restored Phase 1 Strategy)
+            
+            # 3. Standard Trigger Check
             import ctypes
             user32 = ctypes.windll.user32
             
-            # Helper to check modifier state
+            # Helper to check modifier state - STILL NEEDED to detect initial press
             def is_mod_pressed(mod_name):
                 if mod_name == 'ctrl':
                      return (user32.GetAsyncKeyState(0x11) & 0x8000) != 0
@@ -155,29 +152,32 @@ class InputObserver:
                      return (user32.GetAsyncKeyState(0x10) & 0x8000) != 0
                 return False
 
+            # Check both hardware AND our tracked state
+            # We trust 'is_mod_pressed' (via API) for initial detection
+            
             trigger_pressed = is_mod_pressed(trigger_mod)
             output_pressed = is_mod_pressed(output_mod)
             
-            # self.log_debug(f"Wheel Event: Trigger({trigger_mod})={trigger_pressed}, Output({output_mod})={output_pressed}")
-
             current_time = time.time()
-            is_sticky = (current_time - self.last_ctrl_wheel_time) < 0.5
-            
-            # ZOOM LOGIC GENERIC
-            if (trigger_pressed or is_sticky):
-                self.log_debug(f"Zoom Triggered! Sticky={is_sticky}")
+            is_sticky = (current_time - self.last_ctrl_wheel_time) < 1.0 # Increased sticky for continuous
+
+            # LOGIC UPDATE: Checking zoom_active ensures we don't drop the state if verified trigger is held
+            if (trigger_pressed or is_sticky or self.zoom_active):
                 self.last_ctrl_wheel_time = current_time
                 
-                if not output_pressed:
-                    # START ZOOM (Block native, inject output)
+                if output_pressed:
+                    # NATIVE SMOOTHNESS
+                    # Worker is holding the key. Let the event pass to OS.
+                    return True
+                else:
+                    # START NEW ZOOM SESSION
+                    # Captures initial tokens to prevent leak
                     with self.zoom_lock:
                         self.zoom_buffer += event_info['delta']
                         self.zoom_active = True 
                         self.zoom_trigger_key = trigger_mod
                         self.zoom_output_key = output_mod
                     return False # Block
-                else:
-                    return True # Allow
             
             return True # Allow everything else
             
@@ -216,6 +216,11 @@ class InputObserver:
             keyboard.press(output)
             time.sleep(0.02)
             
+            # Helper for continuous check
+            trigger_vk = 0x11
+            if trigger == 'alt': trigger_vk = 0x12
+            if trigger == 'shift': trigger_vk = 0x10
+
             # Loop while we have work OR we are holding Input (Continuous Mode)
             while self.running:
                 # Check buffer
@@ -227,30 +232,26 @@ class InputObserver:
                 # Apply Scroll
                 if delta_to_apply != 0:
                     steps = delta_to_apply / 120.0
-                    mouse.wheel(steps)
-                    # Don't sleep too long to support fast scroll
-                    time.sleep(0.01) 
-                else:
-                    # No new scroll data.
-                    # Should we exit? Only if timeout expired AND buffer empty.
-                    
-                    if (time.time() - self.last_ctrl_wheel_time) > 0.5:
-                        # User stopped scrolling or released key for > 500ms
-                        self.zoom_active = False
-                        break
-                    time.sleep(0.01)
+                    mouse.wheel(steps) 
+                
+                # CHECK CONTINUOUS MODE:
+                # We rely on specific activity timeout (Grace Period).
+                # If the user pauses for > 1.0s, we assume they let go.
+                if delta_to_apply == 0 and (time.time() - self.last_ctrl_wheel_time) > 1.0:
+                    self.zoom_active = False
+                    break
+                
+                time.sleep(0.005) # Idle wait
             
             # EXIT ZOOM MODE
             keyboard.release(output)
             time.sleep(0.02)
             
             # Smart Restore Trigger
-            # Check physical state of trigger key
-            # Mapping simplified for common modifiers
-            trigger_vk = 0x11 # Default Ctrl
-            if trigger == 'alt': trigger_vk = 0x12
-            if trigger == 'shift': trigger_vk = 0x10
-            
+            # If user is still physically holding it, press it back
+            # Smart Restore Trigger
+            # Check physical state to see if we should press it back
+            # Since we removed hooks, we use GetAsyncKeyState
             if (user32.GetAsyncKeyState(trigger_vk) & 0x8000) != 0:
                 keyboard.press(trigger)
             else:
