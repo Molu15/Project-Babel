@@ -56,21 +56,28 @@ class TrayIcon:
         )
 
         # Load icon image
-        # High contrast colors: Yellow and Blue
-        icon_image = self._create_image(64, 64, 'yellow', 'blue')
+        try:
+             # Try loading assets/icon.png
+             icon_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'icon.png')
+             icon_image = Image.open(icon_path)
+        except Exception as e:
+             print(f"Failed to load icon: {e}. generating default.")
+             icon_image = self._create_image(64, 64, 'yellow', 'blue')
         
         self.icon = pystray.Icon("Project Babel", icon_image, "Project Babel", menu)
 
     def _set_profile(self, profile_name):
-        print(f"Tray: Switching to {profile_name}")
-        self.config_manager.set_active_profile(profile_name)
-        # Force re-registration of hotkeys in observer
-        self.observer.stop()
-        self.observer.register_hotkeys()
-        self.observer.start()
-        
-        # Update icon menu state (pystray might need invalidation, but menu is dynamic usually)
-        # self.icon.update_menu() # Some versions require this
+        try:
+            print(f"Tray: Switching to {profile_name}")
+            self.config_manager.set_active_profile(profile_name)
+            # Force re-registration of hotkeys in observer
+            self.observer.stop()
+            self.observer.register_hotkeys()
+            self.observer.start()
+        except KeyboardInterrupt:
+            pass
+        except Exception as e:
+            print(f"Error switching profile: {e}")
 
     def _reload_config(self):
         print("Tray: Reloading Config...")
