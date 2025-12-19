@@ -4,5 +4,46 @@
         "photoshop",
         "figma"
     ],
-    "mappings": []
+    "mappings": [
+        {
+            "input": "ctrl+j",
+            "output": "ctrl+j",
+            "description": "Duplicate"
+        },
+        {
+            "input": "esc",
+            "output": "ctrl+d",
+            "description": "Deselect"
+        },
+        {
+            "input": "ctrl+\u00f6",
+            "output": "ctrl+\u00e4",
+            "description": "Layer Up"
+        },
+        {
+            "input": "ctrl+\u00e4",
+            "output": "ctrl+#",
+            "description": "Layer Down"
+        },
+        {
+            "input": "ctrl+y",
+            "output": "ctrl+shift+Z",
+            "description": "Redo"
+        },
+        {
+            "input": "ctrl+g",
+            "output": "ctrl+g",
+            "description": "Group (Passthrough)"
+        },
+        {
+            "input": "ctrl+shift+g",
+            "output": "ctrl+shift+g",
+            "description": "Ungroup (Passthrough)"
+        },
+        {
+            "input": "ctrl+wheel",
+            "output": "alt+wheel",
+            "description": "Zoom"
+        }
+    ]
 }

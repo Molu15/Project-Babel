@@ -51,10 +51,13 @@ class TrayIcon:
                 radio=True
             ),
             pystray.Menu.SEPARATOR,
+            item('Edit Custom Config', self._open_editor),
             item('Reload Config', self._reload_config),
             item('Exit', self._exit_app)
         )
-
+        
+        
+        
         # Load icon image
         try:
              # Try loading assets/icon.png
@@ -65,6 +68,46 @@ class TrayIcon:
              icon_image = self._create_image(64, 64, 'yellow', 'blue')
         
         self.icon = pystray.Icon("Project Babel", icon_image, "Project Babel", menu)
+
+
+    def _open_editor(self):
+        # Run the editor in a separate process to avoid Tkinter/PyStray conflicts
+        import subprocess
+        import sys
+        
+        mappings_dir = self.config_manager.mappings_dir
+        profile_path = mappings_dir / "custom.json"
+        
+        # Script path: src/ui/editor_window.py
+        script_path = os.path.join(os.path.dirname(__file__), 'editor_window.py')
+        
+        print(f"Tray: Spawning editor for {profile_path}")
+        
+        def run_and_reload():
+            try:
+                # Use subprocess to run the script
+                # check=True will raise CalledProcessError if exit code is non-zero (i.e., Cancelled)
+                result = subprocess.run([sys.executable, script_path, str(profile_path)])
+                
+                print(f"Tray: Editor process ended with code {result.returncode}")
+                
+                if result.returncode == 0:
+                     print("Tray: Editor saved. Switching to Custom Profile...")
+                     # Switch to custom
+                     self._set_profile('custom.json')
+                     # Force menu refresh if supported
+                     if hasattr(self.icon, 'update_menu'):
+                         self.icon.update_menu()
+                else:
+                     print("Tray: Editor cancelled (no changes).")
+                
+            except Exception as e:
+                print(f"Error running editor process: {e}")
+
+        # Run in a thread so we don't block the tray
+        t = threading.Thread(target=run_and_reload, daemon=True)
+        t.start()
+
 
     def _set_profile(self, profile_name):
         try:

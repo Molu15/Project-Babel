@@ -59,7 +59,7 @@ def main():
         log_debug("Tray Initialized. Entering Main Loop...")
         print("\n" + "="*50)
         print("CHECK YOUR SYSTEM TRAY (BOTTOM RIGHT)")
-        print("Look for the Yellow/Blue icon!")
+        print("Look for the Project Babel Icon (Green Tower)!")
         print("Use the icon to Switch Modes or Exit.")
         print("="*50 + "\n")
         
