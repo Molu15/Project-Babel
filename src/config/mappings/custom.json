@@ -1,11 +1,12 @@
 {
-    "profile_name": "Figma to Photoshop (German QWERTZ)",
+    "profile_name": "Custom",
     "target_apps": [
-        "photoshop"
+        "photoshop",
+        "figma"
     ],
     "mappings": [
         {
-            "input": "ctrl+d",
+            "input": "ctrl+j",
             "output": "ctrl+j",
             "description": "Duplicate"
         },
@@ -15,12 +16,12 @@
             "description": "Deselect"
         },
         {
-            "input": "ctrl+ö",
-            "output": "ctrl+ä",
+            "input": "ctrl+\u00f6",
+            "output": "ctrl+\u00e4",
             "description": "Layer Up"
         },
         {
-            "input": "ctrl+ä",
+            "input": "ctrl+\u00e4",
             "output": "ctrl+#",
             "description": "Layer Down"
         },

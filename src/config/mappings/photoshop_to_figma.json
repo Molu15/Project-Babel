@@ -1,32 +1,37 @@
 {
-    "profile_name": "Figma to Photoshop (German QWERTZ)",
+    "profile_name": "Photoshop to Figma",
     "target_apps": [
-        "photoshop"
+        "figma"
     ],
     "mappings": [
         {
-            "input": "ctrl+d",
-            "output": "ctrl+j",
-            "description": "Duplicate"
+            "input": "ctrl+j",
+            "output": "ctrl+d",
+            "description": "Duplicate (PS style in Figma)"
         },
         {
-            "input": "esc",
-            "output": "ctrl+d",
+            "input": "ctrl+d",
+            "output": "esc",
             "description": "Deselect"
         },
         {
-            "input": "ctrl+ö",
-            "output": "ctrl+ä",
+            "input": "ctrl+ä",
+            "output": "ctrl+ö",
             "description": "Layer Up"
         },
         {
-            "input": "ctrl+ä",
-            "output": "ctrl+#",
+            "input": "ctrl+#",
+            "output": "ctrl+ä",
             "description": "Layer Down"
         },
         {
-            "input": "ctrl+y",
-            "output": "ctrl+shift+Z",
+            "input": "alt+wheel",
+            "output": "ctrl+wheel",
+            "description": "Zoom"
+        },
+        {
+            "input": "ctrl+shift+Z",
+            "output": "ctrl+y",
             "description": "Redo"
         },
         {
@@ -38,11 +43,6 @@
             "input": "ctrl+shift+g",
             "output": "ctrl+shift+g",
             "description": "Ungroup (Passthrough)"
-        },
-        {
-            "input": "ctrl+wheel",
-            "output": "alt+wheel",
-            "description": "Zoom"
         }
     ]
 }

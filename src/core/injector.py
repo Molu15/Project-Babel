@@ -50,7 +50,7 @@ class InjectionModule:
             if (user32.GetAsyncKeyState(0x12) & 0x8000) != 0:
                 ctypes.windll.user32.keybd_event(0x12, 0, 0, 0) # VK_MENU Down
                 
-            print(f"DEBUG: Injected {command} and restored modifiers")
+            # print(f"DEBUG: Injected {command} and restored modifiers")
         except Exception as e:
             # Fallback
             print(f"Injection Failed: {e}")
