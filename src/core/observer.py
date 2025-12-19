@@ -1,6 +1,7 @@
 import keyboard
 import threading
 import time
+from core.web_listener import WebContextListener
 
 class InputObserver:
     def __init__(self, context_manager, config_manager, injection_module):
@@ -10,6 +11,9 @@ class InputObserver:
         self.running = False
         self._hook = None
         
+        # Web Context Listener
+        self.web_listener = WebContextListener()
+
         # Context Caching
         self.is_active_context = False
         self._context_thread = None
@@ -36,13 +40,25 @@ class InputObserver:
         while True:
             try:
                 targets = self.config_manager.get_active_profile_targets()
-                self.is_active_context = self.context_manager.is_target_active(targets)
+                
+                # PHASE 3: Check Web Context First
+                web_app = self.web_listener.get_active_web_app()
+                
+                if web_app:
+                    # Check if the detected web app matches any of our targets
+                    # e.g. If active profile is "Figma to Photoshop", target might be "figma" (source-based) or "photoshop" (dest-based).
+                    # Based on previous debugging, we treat `targets` as the context where remapping should happen.
+                    self.is_active_context = any(t.lower() in web_app.lower() for t in targets) or (web_app == "figma" and "figma" in targets)
+                else:
+                    # Fallback to Desktop Window Check
+                    self.is_active_context = self.context_manager.is_target_active(targets)
+
                 if self.is_active_context != last_state:
-                    self.log_debug(f"Context changed to {'ACTIVE' if self.is_active_context else 'INACTIVE'} (Targets: {targets})")
+                    self.log_debug(f"Context changed to {'ACTIVE' if self.is_active_context else 'INACTIVE'} (Web: {web_app}, Targets: {targets})")
                     last_state = self.is_active_context
             except Exception as e:
                 print(f"Error in context thread: {e}")
-            time.sleep(0.05) # Faster polling
+            time.sleep(0.05) # Faster polling 
 
     def start(self):
         """Starts listening."""
@@ -50,6 +66,12 @@ class InputObserver:
             return
 
         self.running = True
+        
+        # Start Web Listener
+        self.web_listener.start()
+        
+        # Ensure we have initial hooks
+        self.register_hotkeys()
         
         # Re-initialize threads here to allow restarts
         self._context_thread = threading.Thread(target=self._monitor_context, daemon=True)
@@ -262,10 +284,7 @@ class InputObserver:
                 self.zoom_buffer = 0
 
     def _handle_hotkey(self, src, dst):
-        print(f"DEBUG: Hotkey detected '{src}'")
         if self.is_active_context:
-            print(f"DEBUG: Translating {src} -> {dst}")
             self.injection_module.inject(dst)
         else:
-            # print(f"DEBUG: Context verification failed for hotkey '{src}' (is_active={self.is_active_context})")
             keyboard.send(src)

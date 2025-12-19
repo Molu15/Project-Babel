@@ -2,10 +2,12 @@ import keyboard
 import time
 import ctypes
 import sys
-from core.observer import InputObserver
-from core.context import ContextManager
-from core.translator import TranslationEngine
-from core.injector import InjectionModule
+
+# Deferred Code Imports to allow logging of ImportError
+# from core.observer import InputObserver
+# from core.context import ContextManager
+# from core.translator import TranslationEngine
+# from core.injector import InjectionModule
 
 
 def is_admin():
@@ -37,7 +39,18 @@ def main():
         log_debug("In Admin Mode. Importing components...")
         
         # Initialize components
-        from config.config_manager import ConfigManager
+        try:
+            from config.config_manager import ConfigManager
+            from core.observer import InputObserver
+            from core.context import ContextManager
+            from core.translator import TranslationEngine
+            from core.injector import InjectionModule
+        except ImportError as e:
+            log_debug(f"IMPORT ERROR: {e}")
+            print(f"FAILED TO IMPORT DEPENDENCIES: {e}")
+            input("Press Enter to exit...")
+            return
+
         config_manager = ConfigManager(".") # Root is current dir
         
         context_manager = ContextManager()
