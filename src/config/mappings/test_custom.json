@@ -1,0 +1,1 @@
+{"target_apps": ["notepad"], "mappings": [{"input": "a", "output": "b", "strategy": "macro"}]}

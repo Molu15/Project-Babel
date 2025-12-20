@@ -30,6 +30,11 @@
             "description": "Redo"
         },
         {
+            "input": "ctrl+Z",
+            "output": "ctrl+z",
+            "description": "Undo"
+        },
+        {
             "input": "ctrl+g",
             "output": "ctrl+g",
             "description": "Group (Passthrough)"
