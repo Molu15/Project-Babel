@@ -6,7 +6,6 @@ class ConfigManager:
     def __init__(self, project_root):
         self.project_root = Path(project_root)
         self.config_path = self.project_root / "config.json"
-        self.mappings_dir = self.project_root / "src" / "config" / "mappings"
         
         self.config = {
             "active_profile": "figma_to_photoshop.json",
@@ -14,8 +13,15 @@ class ConfigManager:
         }
         self.active_profile_data = {}
         
+        # New Semantic Config
+        self.semantic_config_path = self.project_root / "src" / "config" / "semantic_config.json"
+        self.semantic_data = {
+            "system_definitions": {},
+            "user_profile": {}
+        }
+        
         self.load_config()
-        self.load_active_profile()
+        self.load_semantic_config()
 
     def load_config(self):
         """Loads the main config.json file."""
@@ -29,6 +35,49 @@ class ConfigManager:
         else:
             self.save_config()
 
+    def load_semantic_config(self):
+        """Loads the semantic_config.json file."""
+        if self.semantic_config_path.exists():
+            try:
+                with open(self.semantic_config_path, 'r', encoding='utf-8') as f:
+                    self.semantic_data = json.load(f)
+                print("Loaded semantic_config.json")
+            except Exception as e:
+                print(f"Error loading semantic_config.json: {e}")
+        else:
+            print("Warning: semantic_config.json not found.")
+
+    def get_system_definitions(self):
+        return self.semantic_data.get("system_definitions", {})
+
+    def get_user_profile(self):
+        # 1. Get Active Profile Name from main config (e.g. "figma_to_photoshop.json")
+        active_name = self.config.get("active_profile", "figma_to_photoshop.json")
+        
+        # 2. Look up in semantic profiles
+        profiles = self.semantic_data.get("profiles", {})
+        
+        # 3. Return the settings for that profile
+        if active_name in profiles:
+             print(f"DEBUG: Using Profile '{active_name}'")
+             return profiles[active_name]
+        else:
+             print(f"Warning: Profile '{active_name}' not found in semantic config. Falling back to first available.")
+             return next(iter(profiles.values())) if profiles else {}
+
+    def get_semantic_targets(self):
+        """
+        Derives list of supported apps from system definitions.
+        """
+        actions = self.get_system_definitions().get("actions", {})
+        apps = set()
+        for action in actions.values():
+            # keys of action dict are app names (except 'type')
+            for key in action.keys():
+                if key != "type":
+                    apps.add(key)
+        return list(apps)
+
     def save_config(self):
         """Saves the current configuration to config.json."""
         try:
@@ -37,28 +86,11 @@ class ConfigManager:
         except Exception as e:
             print(f"Error saving config.json: {e}")
 
-    def load_active_profile(self):
-        """Loads the profile JSON specified in config.json."""
-        profile_name = self.config.get("active_profile", "figma_to_photoshop.json")
-        profile_path = self.mappings_dir / profile_name
-        
-        if profile_path.exists():
-            try:
-                with open(profile_path, 'r', encoding='utf-8') as f:
-                    self.active_profile_data = json.load(f)
-                print(f"Loaded profile: {profile_name}")
-            except Exception as e:
-                print(f"Error loading profile {profile_name}: {e}")
-                self.active_profile_data = {"mappings": [], "target_apps": []}
-        else:
-            print(f"Profile {profile_name} not found at {profile_path}")
-            self.active_profile_data = {"mappings": [], "target_apps": []}
-
     def set_active_profile(self, profile_filename):
         """Sets a new active profile and reloads."""
+        # Legacy support or maybe we switch user_profile presets here?
         self.config["active_profile"] = profile_filename
         self.save_config()
-        self.load_active_profile()
 
     def get_active_profile_targets(self):
         """Returns the list of target applications for the current profile."""

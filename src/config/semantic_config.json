@@ -1,0 +1,88 @@
+{
+    "system_definitions": {
+        "comment": "The Truth Table - What the apps natively expect. DO NOT EDIT unless patching apps.",
+        "actions": {
+            "duplicate": {
+                "photoshop": "ctrl+j",
+                "figma": "ctrl+d"
+            },
+            "deselect": {
+                "photoshop": "ctrl+d",
+                "figma": "esc"
+            },
+            "layer_up": {
+                "photoshop": "ctrl+\u00e4",
+                "figma": "ctrl+\u00f6"
+            },
+            "layer_down": {
+                "photoshop": "ctrl+#",
+                "figma": "ctrl+\u00e4"
+            },
+            "zoom": {
+                "photoshop": "alt+wheel",
+                "figma": "ctrl+wheel",
+                "type": "gesture"
+            },
+            "redo": {
+                "photoshop": "ctrl+shift+z",
+                "figma": "ctrl+y"
+            },
+            "undo": {
+                "photoshop": "ctrl+z",
+                "figma": "ctrl+z"
+            },
+            "group": {
+                "photoshop": "ctrl+g",
+                "figma": "ctrl+g"
+            },
+            "ungroup": {
+                "photoshop": "ctrl+shift+g",
+                "figma": "ctrl+shift+g"
+            }
+        }
+    },
+    "profiles": {
+        "figma_to_photoshop.json": {
+            "comment": "Use Figma shortcuts in all apps",
+            "settings": {
+                "duplicate": "figma",
+                "deselect": "figma",
+                "layer_up": "figma",
+                "layer_down": "figma",
+                "zoom": "figma",
+                "redo": "figma",
+                "undo": "figma",
+                "group": "figma",
+                "ungroup": "figma"
+            }
+        },
+        "photoshop_to_figma.json": {
+            "comment": "Use Photoshop shortcuts in all apps",
+            "settings": {
+                "duplicate": "photoshop",
+                "deselect": "photoshop",
+                "layer_up": "photoshop",
+                "layer_down": "photoshop",
+                "zoom": "photoshop",
+                "redo": "photoshop",
+                "undo": "photoshop",
+                "group": "photoshop",
+                "ungroup": "photoshop"
+            }
+        },
+        "custom.json": {
+            "comment": "Your Custom Mix",
+            "settings": {
+                "duplicate": "figma",
+                "deselect": "figma",
+                "layer_up": "photoshop",
+                "layer_down": "photoshop",
+                "zoom": "figma",
+                "redo": "photoshop",
+                "undo": "photoshop",
+                "group": "figma",
+                "ungroup": "figma"
+            }
+        }
+    }
+}
