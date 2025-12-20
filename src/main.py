@@ -6,7 +6,6 @@ import sys
 # Deferred Code Imports to allow logging of ImportError
 # from core.observer import InputObserver
 # from core.context import ContextManager
-# from core.translator import TranslationEngine
 # from core.injector import InjectionModule
 
 
@@ -43,7 +42,6 @@ def main():
             from config.config_manager import ConfigManager
             from core.observer import InputObserver
             from core.context import ContextManager
-            from core.translator import TranslationEngine
             from core.injector import InjectionModule
         except ImportError as e:
             log_debug(f"IMPORT ERROR: {e}")

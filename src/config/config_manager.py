@@ -6,7 +6,6 @@ class ConfigManager:
     def __init__(self, project_root):
         self.project_root = Path(project_root)
         self.config_path = self.project_root / "config.json"
-        self.mappings_dir = self.project_root / "src" / "config" / "mappings"
         
         self.config = {
             "active_profile": "figma_to_photoshop.json",
@@ -23,7 +22,6 @@ class ConfigManager:
         
         self.load_config()
         self.load_semantic_config()
-        # self.load_active_profile() # Legacy
 
     def load_config(self):
         """Loads the main config.json file."""

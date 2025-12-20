@@ -75,7 +75,7 @@
             "settings": {
                 "duplicate": "figma",
                 "deselect": "figma",
-                "layer_up": "custom: ctrl+p",
+                "layer_up": "photoshop",
                 "layer_down": "photoshop",
                 "zoom": "figma",
                 "redo": "photoshop",

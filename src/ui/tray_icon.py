@@ -97,6 +97,9 @@ class TrayIcon:
                 if result.returncode == 0:
                      print("Tray: Editor saved. Switching to Custom Profile...")
                      
+                     # Reload changed config from disk
+                     self.config_manager.load_semantic_config()
+
                      # Switch to Custom Profile (This reloads config and re-registers hotkeys)
                      self._set_profile('custom.json')
                      
