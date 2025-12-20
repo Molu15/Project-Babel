@@ -57,6 +57,7 @@ class InputObserver:
                 
                 # Check Web Context First
                 web_app = self.web_listener.get_active_web_app()
+                
                 detected_app = None
 
                 active = False
@@ -138,14 +139,17 @@ class InputObserver:
         self.running = False
         keyboard.unhook_all()
         if hasattr(self, '_mouse_hook'):
-             self._mouse_hook.stop()
-             del self._mouse_hook
+            self._mouse_hook.stop()
+            del self._mouse_hook
 
     def register_hotkeys(self):
         """
         Registers hotkeys for ALL triggers defined in User Profile.
         The Action depends on the active context at runtime.
         """
+        # Clear mapper cache to ensure fresh config loading
+        self.action_mapper.clear_cache()
+        
         triggers = self.action_mapper.get_all_configured_triggers()
         self.registered_triggers = set(triggers.keys()) # Keep track of what we hooked
         

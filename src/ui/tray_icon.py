@@ -75,29 +75,35 @@ class TrayIcon:
         import subprocess
         import sys
         
-        mappings_dir = self.config_manager.mappings_dir
-        profile_path = mappings_dir / "custom.json"
+        # New: Target semantic_config.json
+        semantic_path = self.config_manager.semantic_config_path
+        
+        # ALWAYS target custom.json for editing
+        target_profile = "custom.json"
         
         # Script path: src/ui/editor_window.py
         script_path = os.path.join(os.path.dirname(__file__), 'editor_window.py')
         
-        print(f"Tray: Spawning editor for {profile_path}")
+        print(f"Tray: Spawning editor for {semantic_path} [{target_profile}]")
         
         def run_and_reload():
             try:
                 # Use subprocess to run the script
-                # check=True will raise CalledProcessError if exit code is non-zero (i.e., Cancelled)
-                result = subprocess.run([sys.executable, script_path, str(profile_path)])
+                # Pass both FILE and PROFILE
+                result = subprocess.run([sys.executable, script_path, str(semantic_path), target_profile])
                 
                 print(f"Tray: Editor process ended with code {result.returncode}")
                 
                 if result.returncode == 0:
                      print("Tray: Editor saved. Switching to Custom Profile...")
-                     # Switch to custom
+                     
+                     # Switch to Custom Profile (This reloads config and re-registers hotkeys)
                      self._set_profile('custom.json')
+                     
                      # Force menu refresh if supported
                      if hasattr(self.icon, 'update_menu'):
                          self.icon.update_menu()
+
                 else:
                      print("Tray: Editor cancelled (no changes).")
                 
@@ -125,7 +131,7 @@ class TrayIcon:
     def _reload_config(self):
         print("Tray: Reloading Config...")
         self.config_manager.load_config()
-        self.config_manager.load_active_profile()
+        self.config_manager.load_semantic_config()
         
         self.observer.stop()
         self.observer.register_hotkeys()

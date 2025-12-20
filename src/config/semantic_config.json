@@ -11,12 +11,12 @@
                 "figma": "esc"
             },
             "layer_up": {
-                "photoshop": "ctrl+ä",
-                "figma": "ctrl+ö"
+                "photoshop": "ctrl+\u00e4",
+                "figma": "ctrl+\u00f6"
             },
             "layer_down": {
                 "photoshop": "ctrl+#",
-                "figma": "ctrl+ä"
+                "figma": "ctrl+\u00e4"
             },
             "zoom": {
                 "photoshop": "alt+wheel",
@@ -75,7 +75,7 @@
             "settings": {
                 "duplicate": "figma",
                 "deselect": "figma",
-                "layer_up": "custom: f1",
+                "layer_up": "custom: ctrl+p",
                 "layer_down": "photoshop",
                 "zoom": "figma",
                 "redo": "photoshop",
