@@ -24,6 +24,9 @@
     ```bash
     pip install -r requirements.txt
     ```
+3.  **Create Desktop Launcher**:
+    - Right-click `create_desktop_shortcut.ps1` and select "Run with PowerShell".
+    - This will generate a "Project Babel" shortcut on your Desktop.
 
 ## Browser Extension Setup (Babel Bridge)
 
@@ -39,23 +42,20 @@ To enable context detection for web apps (like Figma in the browser), you must i
 ## Usage
 
 ### Running the Application
-Project Babel requires Administrator privileges to intercept and inject global keyboard events.
 
-1.  Open your terminal as **Administrator**.
-2.  Run the main script:
-    ```bash
-    python src/main.py
-    ```
-    *(Or allow the UAC prompt if it requests elevation automatically)*
+Double-click the **Project Babel** shortcut on your Desktop.
+- The application runs **silently** in the background (no console window will appear).
+- You may be prompted by Windows (UAC) to allow Administrator changes—this is required for global key hooks.
 
 ### System Tray Controls
-Babel runs in the background. Right-click the **Feather Icon** in your system tray to control it:
+Babel runs in the background. Right-click the **Green Tower** in your system tray to control it:
 
 -   **Figma -> Photoshop**: Forces the system to expect Figma-style inputs.
 -   **Photoshop -> Figma**: Forces the system to expect Photoshop-style inputs.
 -   **Custom**: Activates your personal configuration.
 -   **Edit Custom Config**: Opens a live editor to tweak your "Custom" profile settings.
     -   *Note: Saving changes here automatically switches you to the Custom profile.*
+-   **Reload Config**: Refreshes the configuration from disk (useful if you manually edit files).
 
 ### Configuration
 You can technically edit `src/config/semantic_config.json` manually, but it is recommended to use the Tray Icon's **Edit Custom Config** feature for safety.
