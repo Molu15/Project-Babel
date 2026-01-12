@@ -20,6 +20,7 @@ class InputObserver:
         # Context Caching
         self.is_active_context = False
         self._context_thread = None
+        self._zoom_thread = None
         self.active_app_name = None
         
         # Semantic Mapping State
@@ -84,13 +85,14 @@ class InputObserver:
                 self.is_active_context = active
                 self.active_app_name = detected_app
 
-                # Update Mappings if Context Changed
+        # Update Mappings if Context Changed
                 if active and detected_app and detected_app != last_app:
+                     print(f"DEBUG: Context switch detected: {last_app} -> {detected_app}. Updating mappings.")
                      self._update_mappings_for_context(detected_app)
                      last_app = detected_app
 
                 if self.is_active_context != last_state:
-                    self.log_debug(f"Context changed to {'ACTIVE' if self.is_active_context else 'INACTIVE'} (App: {detected_app})")
+                    print(f"Context changed to {'ACTIVE' if self.is_active_context else 'INACTIVE'} (App: {detected_app})")
                     last_state = self.is_active_context
                     
             except Exception as e:
@@ -101,6 +103,7 @@ class InputObserver:
         """
         Ask ActionMapper for new mappings and update lookup table.
         """
+        print(f"DEBUG: Requesting mappings for {app_name}")
         raw_mappings = self.action_mapper.get_mappings_for_context(app_name)
         new_lookup = {}
         for rule in raw_mappings:
@@ -112,7 +115,7 @@ class InputObserver:
         with self.active_context_lock:
             self.mapping_lookup = new_lookup
         
-        # print(f"DEBUG: Updated mappings for {app_name}: {new_lookup}")
+        print(f"DEBUG: Updated mappings for {app_name}: {new_lookup}")
 
     def start(self):
         """Starts listening."""
@@ -128,19 +131,33 @@ class InputObserver:
         self.register_hotkeys()
         
         # Re-initialize threads here to allow restarts
-        self._context_thread = threading.Thread(target=self._monitor_context, daemon=True)
-        self._context_thread.start()
+        if self._context_thread is None or not self._context_thread.is_alive():
+            self._context_thread = threading.Thread(target=self._monitor_context, daemon=True)
+            self._context_thread.start()
         
         # Worker thread (daemon) for processing zoom buffer
-        threading.Thread(target=self._zoom_worker, daemon=True).start()
+        self._zoom_thread = threading.Thread(target=self._zoom_worker, daemon=True)
+        self._zoom_thread.start()
 
     def stop(self):
-        """Stops listening."""
+        """Stops listening and waits for threads to exit."""
         self.running = False
+        
+        # Unhook Global Inputs
         keyboard.unhook_all()
         if hasattr(self, '_mouse_hook'):
             self._mouse_hook.stop()
             del self._mouse_hook
+
+        # Wait for threads to finish (graceful shutdown)
+        if self._context_thread and self._context_thread.is_alive():
+            self._context_thread.join(timeout=1.0)
+            
+        if hasattr(self, '_zoom_thread') and self._zoom_thread.is_alive():
+            self._zoom_thread.join(timeout=1.0)
+            
+        self._context_thread = None
+        self._zoom_thread = None
 
     def register_hotkeys(self):
         """

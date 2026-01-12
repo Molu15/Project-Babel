@@ -41,7 +41,8 @@ class ActionMapper:
         actions = definitions.get("actions", {})
         user_settings = user_profile.get("settings", {})
         
-        print(f"DEBUG: Generating mappings for Context='{context_key}'")
+        active_profile_name = self.config_manager.config.get("active_profile", "UNKNOWN")
+        print(f"DEBUG: Generating mappings for Context='{context_key}' using Profile='{active_profile_name}'")
 
         for action_name, action_defs in actions.items():
             # 1. Target Command: What does the active app need?
