@@ -78,10 +78,10 @@
                 "layer_up": "photoshop",
                 "layer_down": "photoshop",
                 "zoom": "photoshop",
-                "redo": "photoshop",
+                "redo": "custom: ctrl+r",
                 "undo": "figma",
-                "group": "figma",
-                "ungroup": "figma"
+                "group": "custom: ctrl+t",
+                "ungroup": "custom: ctrl+shift+t"
             }
         }
     }
