@@ -77,9 +77,9 @@
                 "deselect": "figma",
                 "layer_up": "photoshop",
                 "layer_down": "photoshop",
-                "zoom": "figma",
+                "zoom": "photoshop",
                 "redo": "photoshop",
-                "undo": "photoshop",
+                "undo": "figma",
                 "group": "figma",
                 "ungroup": "figma"
             }
