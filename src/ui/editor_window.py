@@ -27,7 +27,7 @@ class EditorWindow:
         lbl_title = tk.Label(header_frame, text=f"Profile: {self.profile_name}", font=("Segoe UI", 12, "bold"))
         lbl_title.pack(anchor="w")
         
-        lbl_info = tk.Label(header_frame, text="Edit your shortcuts expectations below.\nValues: 'figma', 'photoshop', or 'custom: <key>'", justify="left")
+        lbl_info = tk.Label(header_frame, text="Edit your shortcuts expectations below.\nValues: 'figma', 'photoshop', or 'custom: <key>+<key>'", justify="left")
         lbl_info.pack(anchor="w", pady=(5,0))
         
         # Text Area
