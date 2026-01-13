@@ -16,8 +16,6 @@ def is_admin():
         return False
 
 def log_debug(msg):
-    with open("babel_debug.log", "a") as f:
-        f.write(f"{time.ctime()}: {msg}\n")
     print(msg)
 
 def main():

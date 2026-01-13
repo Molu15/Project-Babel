@@ -75,11 +75,11 @@
             "settings": {
                 "duplicate": "figma",
                 "deselect": "figma",
-                "layer_up": "photoshop",
-                "layer_down": "photoshop",
-                "zoom": "photoshop",
-                "redo": "custom: ctrl+r",
-                "undo": "figma",
+                "layer_up": "figma",
+                "layer_down": "figma",
+                "zoom": "figma",
+                "redo": "figma",
+                "undo": "custom: ctrl+r",
                 "group": "custom: ctrl+t",
                 "ungroup": "custom: ctrl+shift+t"
             }

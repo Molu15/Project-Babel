@@ -39,12 +39,7 @@ class InputObserver:
         self.trigger_held = False # Track physical state
         
     def log_debug(self, msg):
-        import time
-        try:
-            with open("babel_debug.log", "a") as f:
-                f.write(f"{time.ctime()} [OBSERVER]: {msg}\n")
-        except:
-            pass
+        print(f"[OBSERVER]: {msg}")
 
     def _monitor_context(self):
         """Polls context every 0.1s to update status without blocking hooks."""
